@@ -1,103 +1,103 @@
 # hdmi-auto-scale
 
-Automatically adjust your laptop display scaling when an external HDMI monitor is plugged or unplugged — for **GNOME on X11** with fractional scaling.
+Ajuste automatico de escala do display do notebook ao plugar/desplugar um monitor HDMI externo — para **GNOME no X11** com fractional scaling.
 
-Tested on a **Lenovo IdeaPad Flex 5 14ALC7** (Ryzen 5 5500U, 14" FHD IPS) running **Pop!_OS 22.04** with GNOME on X11.
+Testado em um **Dell Latitude 5420** (Intel Core i5 11ª geração, 24 GB RAM, 14" FHD) rodando **Pop!_OS 22.04** com GNOME no X11.
 
-## Why?
+## Por que este projeto?
 
-GNOME on X11 with fractional scaling (`x11-randr-fractional-scaling`) requires manual scale adjustment every time you plug or unplug an external monitor. If you use 125% on the laptop screen for readability, but need 100% when mirrored or side-by-side with a larger external display, you have to open Settings > Displays every single time.
+O GNOME no X11 com fractional scaling (`x11-randr-fractional-scaling`) exige ajuste manual da escala toda vez que voce pluga ou despluga um monitor externo. Se voce usa 125% na tela do notebook para legibilidade, mas precisa de 100% quando espelha ou estende a tela com um monitor maior, precisa abrir Configuracoes > Telas toda vez.
 
-This project automates that by watching HDMI hotplug events via `inotifywait` and applying the correct `xrandr` scale factor instantly.
+Este projeto automatiza isso monitorando eventos de hotplug HDMI via `inotifywait` e aplicando o fator de escala correto com `xrandr` instantaneamente.
 
-## How it works
+## Como funciona
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  inotifywait watches /sys/class/drm/card*-HDMI-*/status │
-│                         │                                │
-│              ┌──────────┴──────────┐                     │
-│              │  HDMI connected?     │                     │
-│              └──────────┬──────────┘                     │
-│                    ┌────┴────┐                            │
-│                 YES          NO                           │
-│                  │            │                            │
-│          scale 1x1      scale 1.6x1.6                     │
-│          (100%)         (GNOME "125%")                    │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│  inotifywait monitora /sys/class/drm/card*-HDMI-*/status │
+│                            │                               │
+│               ┌────────────┴────────────┐                │
+│               │  HDMI conectado?          │                │
+│               └────────────┬────────────┘                │
+│                      ┌─────┴─────┐                         │
+│                    SIM          NAO                        │
+│                     │            │                         │
+│             scale 1x1      scale 1.6x1.6                   │
+│             (100%)         (GNOME "125%")                  │
+└──────────────────────────────────────────────────────────┘
 ```
 
-GNOME 125% fractional scaling on X11 uses `xrandr --scale 1.6x1.6` (transform factor 2/1.25), which produces a virtual resolution of 3072×1728 on a 1920×1080 panel. This is **not** 1.25×1.25 — the Mutter compositor applies a different transform internally.
+O fractional scaling de 125% do GNOME no X11 usa `xrandr --scale 1.6x1.6` (fator de transformacao 2/1.25), que produz uma resolucao virtual de 3072×1728 em um painel de 1920×1080. Isso **nao** e 1.25×1.25 — o compositor Mutter aplica uma transformacao diferente internamente.
 
-## Requirements
+## Requisitos
 
-- GNOME on **X11** (Wayland handles fractional scaling differently)
-- `xrandr` (usually pre-installed)
-- `inotify-tools` (install script handles this on Debian/Ubuntu)
-- Bash ≥ 4
+- GNOME no **X11** (Wayland trata fractional scaling de forma diferente)
+- `xrandr` (geralmente ja instalado)
+- `inotify-tools` (o script de instalacao cuida disso no Debian/Ubuntu)
+- Bash >= 4
 
-## Quick Install
+## Instalacao rapida
 
 ```bash
-git clone https://github.com/lucasleisival/hdmi-auto-scale.git
+git clone https://github.com/lucascosm3/hdmi-auto-scale.git
 cd hdmi-auto-scale
 ./install.sh
 ```
 
-The install script will:
+O script de instalacao vai:
 
-1. Install `inotify-tools` via apt if missing
-2. Copy `hdmi-scale-monitor.sh` to `~/.local/scripts/`
-3. Copy and configure the systemd user service
-4. Enable and start the service immediately
+1. Instalar `inotify-tools` via apt, se necessario
+2. Copiar `hdmi-scale-monitor.sh` para `~/.local/scripts/`
+3. Copiar e configurar o servico systemd de usuario
+4. Habilitar e iniciar o servico imediatamente
 
-## Manual Install
+## Instalacao manual
 
 ```bash
-# Install dependencies
+# Instalar dependencias
 sudo apt install inotify-tools
 
-# Copy the script
+# Copiar o script
 mkdir -p ~/.local/scripts
 cp hdmi-scale-monitor.sh ~/.local/scripts/
 chmod +x ~/.local/scripts/hdmi-scale-monitor.sh
 
-# Copy the systemd service
+# Copiar o servico systemd
 mkdir -p ~/.config/systemd/user/
 cp hdmi-scale-monitor.service ~/.config/systemd/user/
 
-# Replace %h with your home directory path in the service file
+# Substituir %h pelo caminho do seu home no arquivo de servico
 sed -i "s|%h|$HOME|g" ~/.config/systemd/user/hdmi-scale-monitor.service
 
-# Enable and start
+# Habilitar e iniciar
 systemctl --user daemon-reload
 systemctl --user enable --now hdmi-scale-monitor.service
 ```
 
-## Configuration
+## Configuracao
 
-All configuration is done via environment variables, which you can set in the systemd service override:
+Toda a configuracao e feita via variaveis de ambiente, que voce pode definir em um override do systemd:
 
-| Variable | Default | Description |
+| Variavel | Padrao | Descricao |
 |---|---|---|
-| `INTERNAL_DISPLAY` | `eDP-1` | Your laptop's internal display connector name |
-| `SCALE_WITHOUT_HDMI` | `1.6x1.6` | Scale when no external monitor (GNOME 125%) |
-| `SCALE_WITH_HDMI` | `1x1` | Scale when HDMI is connected (100%) |
+| `INTERNAL_DISPLAY` | `eDP-1` | Nome do conector do display interno do notebook |
+| `SCALE_WITHOUT_HDMI` | `1.6x1.6` | Escala sem monitor externo (GNOME 125%) |
+| `SCALE_WITH_HDMI` | `1x1` | Escala com HDMI conectado (100%) |
 
-### Finding your display name
+### Descobrindo o nome do seu display
 
 ```bash
 xrandr --query | grep -E "^eDP|^DP|^LVDS"
 ```
 
-### Overriding defaults
+### Sobrescrevendo os padroes
 
 ```bash
-# Create a systemd override
+# Criar um override do systemd
 systemctl --user edit hdmi-scale-monitor.service
 ```
 
-Add your overrides:
+Adicione suas preferencias:
 
 ```ini
 [Service]
@@ -106,30 +106,30 @@ Environment="SCALE_WITHOUT_HDMI=1.6x1.6"
 Environment="SCALE_WITH_HDMI=1x1"
 ```
 
-### monitors.xml (optional)
+### monitors.xml (opcional)
 
-For a clean GNOME experience, you should also configure `~/.config/monitors.xml` to match your desired layouts. See [`monitors.xml.example`](monitors.xml.example) for a template — replace the vendor/product/serial values with your own (run `xrandr --query` to find them).
+Para uma experiencia limpa no GNOME, voce tambem deve configurar `~/.config/monitors.xml` com os layouts desejados. Veja [`monitors.xml.example`](monitors.xml.example) para um template — substitua os valores de vendor/product/serial pelos seus (execute `xrandr --query` para encontra-los).
 
-## Monitoring & Logs
+## Monitoramento e Logs
 
 ```bash
-# Check service status
+# Verificar status do servico
 systemctl --user status hdmi-scale-monitor.service
 
-# View live logs
+# Acompanhar logs em tempo real
 tail -f ~/.local/state/hdmi-auto-scale.log
 
-# View journal
+# Ver journal
 journalctl --user -u hdmi-scale-monitor.service -f
 ```
 
-## Uninstall
+## Desinstalacao
 
 ```bash
 ./uninstall.sh
 ```
 
-Or manually:
+Ou manualmente:
 
 ```bash
 systemctl --user disable --now hdmi-scale-monitor.service
@@ -138,56 +138,56 @@ rm ~/.config/systemd/user/hdmi-scale-monitor.service
 systemctl --user daemon-reload
 ```
 
-## Troubleshooting
+## Resolucao de problemas
 
-### Scale doesn't apply on hotplug
+### A escala nao aplica no hotplug
 
-- Verify the service is running: `systemctl --user status hdmi-scale-monitor.service`
-- Check the log: `cat ~/.local/state/hdmi-auto-scale.log`
-- Ensure you're on X11, not Wayland: `echo $XDG_SESSION_TYPE` should return `x11`
-- If your HDMI appears on a different card, check: `ls /sys/class/drm/card*-HDMI-*/status`
+- Verifique se o servico esta rodando: `systemctl --user status hdmi-scale-monitor.service`
+- Verifique o log: `cat ~/.local/state/hdmi-auto-scale.log`
+- Certifique-se de que esta no X11, nao Wayland: `echo $XDG_SESSION_TYPE` deve retornar `x11`
+- Se o HDMI aparece em outra placa, verifique: `ls /sys/class/drm/card*-HDMI-*/status`
 
-### GNOME overrides my scale settings
+### O GNOME sobrescreve minhas configuracoes de escala
 
-- The script reacts after GNOME applies its own settings. There may be a brief flash as GNOME sets its scale, then this script corrects it.
-- For a persistent solution, configure `~/.config/monitors.xml` to match your desired scales (see the example file).
+- O script reage depois que o GNOME aplica suas proprias configuracoes. Pode haver um flash breve enquanto o GNOME ajusta a escala, e entao este script corrige.
+- Para uma solucao persistente, configure `~/.config/monitors.xml` com as escalas desejadas (veja o arquivo de exemplo).
 
-### Wrong display detected
+### Display errado detectado
 
-- Set `INTERNAL_DISPLAY` to match your connector name (check `xrandr --query`).
+- Defina `INTERNAL_DISPLAY` com o nome correto do conector (verifique com `xrandr --query`).
 
-### The 1.6x1.6 scale looks wrong
+### A escala 1.6x1.6 parece errada
 
-- GNOME "125%" fractional scaling on X11 uses scale 1.6 (which is 2/1.25), not 1.25. If you use a different fractional scale, adjust `SCALE_WITHOUT_HDMI` accordingly:
+- O fractional scaling "125%" do GNOME no X11 usa escala 1.6 (que e 2/1.25), nao 1.25. Se voce usa outra escala fracionaria, ajuste `SCALE_WITHOUT_HDMI` conforme a tabela:
 
-  | GNOME Setting | xrandr Scale |
+  | Configuracao GNOME | Escala xrandr |
   |---|---|
   | 100% | 1x1 |
   | 125% | 1.6x1.6 |
   | 150% | 1.33x1.33 |
   | 175% | 1.14x1.14 |
-  | 200% | 1x1 (doubles on its own) |
+  | 200% | 1x1 (dobra sozinho) |
 
-## How it works internally
+## Funcionamento interno
 
-1. **On startup**, the script immediately checks all HDMI status files and applies the correct scale.
-2. **inotifywait** monitors all `/sys/class/drm/card*-HDMI-*/status` files for changes (hotplug events via kernel DRM subsystem).
-3. **On change**, a 2-second debounce delay allows the kernel/hardware to settle, then the scale is applied via `xrandr`.
-4. **The script runs as a systemd user service**, so it has access to the user's X11 display and Xauthority.
+1. **Na inicializacao**, o script verifica imediatamente todos os arquivos de status HDMI e aplica a escala correta.
+2. **inotifywait** monitora todos os arquivos `/sys/class/drm/card*-HDMI-*/status` por mudancas (eventos de hotplug via subsistema DRM do kernel).
+3. **Na mudanca**, um delay de debounce de 2 segundos permite que o kernel/hardware estabilize, entao a escala e aplicada via `xrandr`.
+4. **O script roda como um servico systemd de usuario**, entao tem acesso ao display X11 e Xauthority do usuario.
 
-## Compatible Hardware
+## Hardware compativel
 
-Developed and tested on:
+Desenvolvido e testado em:
 
-- **Lenovo IdeaPad Flex 5 14ALC7** (Ryzen 5 5500U, 14" FHD 1920×1080 IPS)
+- **Dell Latitude 5420** (Intel Core i5 11ª geracao, 24 GB RAM, 14" FHD 1920×1080)
 - **LG HDR WFHD** (2560×1080 ultrawide via HDMI)
 
-Should work on any GNOME + X11 setup with a laptop display (eDP) and HDMI output. If you use it on different hardware, feel free to open an issue or PR to add to this list.
+Deve funcionar em qualquer configuracao GNOME + X11 com display de notebook (eDP) e saida HDMI. Se funcionar (ou nao) no seu hardware, abra uma issue ou PR para adicionar a esta lista.
 
-## Contributing
+## Contribuindo
 
-Issues and pull requests welcome. If this works (or doesn't) on your hardware, let me know.
+Issues e pull requests sao bem-vindos. Se funcionar (ou nao) no seu hardware, deixe um comentario.
 
-## License
+## Licenca
 
 [MIT](LICENSE)
