@@ -2,6 +2,8 @@
 
 Ajuste automatico de escala do display do notebook ao plugar/desplugar um monitor HDMI externo — para **GNOME no X11** com fractional scaling.
 
+![demo](demo.gif)
+
 Testado em um **Dell Latitude 5420** (Intel Core i5 11ª geração, 24 GB RAM, 14" FHD) rodando **Pop!_OS 22.04** com GNOME no X11.
 
 ## Por que este projeto?
