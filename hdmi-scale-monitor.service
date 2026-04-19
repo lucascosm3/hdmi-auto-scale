@@ -1,0 +1,12 @@
+[Unit]
+Description=Monitor HDMI hotplug and adjust display scaling
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/scripts/hdmi-scale-monitor.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
